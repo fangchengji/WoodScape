@@ -99,6 +99,76 @@ class CylindricalProjection(Projection):
         return outs
 
 
+class PerspectProjection(object):
+    def __init__(self, intrincs: typing.Union[float, list]):
+        self.fx = intrincs[0]
+        self.fy = intrincs[1]
+
+    def project_3d_to_2d(self, cam_points: np.ndarray, invalid_value=np.nan):
+        raise NotImplementedError()
+
+    def project_2d_to_3d(self, lens_points: np.ndarray, norm: np.ndarray):
+        lens_points = ensure_point_list(lens_points, dim=2)
+        norms = ensure_point_list(norm, dim=1)
+
+        x1 = lens_points[:, 0] / self.fx
+        y1 = lens_points[:, 1] / self.fy
+        z1 = np.ones(x1.shape[0], dtype=float)
+
+        return np.vstack((x1, y1, z1)).transpose()
+
+
+class UCMProjection(Projection):
+    def __init__(self, intrincs: typing.Union[float, list]):
+        # self.cx = intrincs[0]
+        # self.cy = intrincs[1]
+        self.gammax = intrincs[2]
+        self.gammay = intrincs[3]
+        self.xi = intrincs[4]
+        self.k1 = intrincs[5]
+        self.k2 = intrincs[6]
+        self.p1 = intrincs[7]
+        self.p2 = intrincs[8]
+        self.k3 = intrincs[9]
+
+    def project_3d_to_2d(self, cam_points, invalid_value=np.nan):
+        camera_points = ensure_point_list(cam_points, dim=3)
+        d = np.sqrt(
+            np.power(camera_points[:, 0], 2) +
+            np.power(camera_points[:, 1], 2) +
+            np.power(camera_points[:, 2], 2))
+        x = np.divide(camera_points[:, 0], self.xi * d + camera_points[:, 2])
+        y = np.divide(camera_points[:, 1], self.xi * d + camera_points[:, 2])
+        r2 = np.power(x, 2) + np.power(y, 2)
+        r4 = np.power(r2, 2)
+        r6 = np.power(r2, 3)
+        x1 = x * (1 + self.k1 * r2 + self.k2 * r4 + self.k3 * r6
+                  ) + 2 * self.p1 * x * y + self.p2 * (r2 + 2 * np.power(x, 2))
+        y1 = y * (1 + self.k1 * r2 + self.k2 * r4 + self.k3 * r6) + self.p1 * (
+            r2 + 2 * np.power(y, 2)) + 2 * self.p2 * x * y
+        u1 = self.gammax * x1
+        v1 = self.gammay * y1
+
+        return np.vstack((u1, v1)).transpose()
+
+    def project_2d_to_3d(self, lens_points: np.ndarray, norms: np.ndarray):
+        lens_points = ensure_point_list(lens_points, dim=2)
+        norms = ensure_point_list(norms, dim=1)
+
+        u1 = lens_points[0] / self.gammax
+        v1 = lens_points[1] / self.gammay
+        # TODO: Add undistort
+
+        u2 = np.power(u1, 2)
+        v2 = np.power(v1, 2)
+        k = np.divide(self.xi + np.sqrt((1 - self.xi * self.xi) * (u2 + v2)),
+                      u2 + v2 + 1)
+        x = k * u1
+        y = k * v1
+        z = (k - self.xi) * np.ones(x.shape[0], dtype=float)
+        return np.hstack((x, y, z))
+
+
 class RadialPolyCamProjection(Projection):
     def __init__(self, distortion_params: list):
         self.coefficients = np.asarray(distortion_params)
@@ -329,9 +399,7 @@ def create_img_projection_maps(source_cam: Camera, destination_cam: Camera):
 
         source_points = source_cam.project_3d_to_2d(
             destination_cam.project_2d_to_3d(destination_points,
-                                             norm=np.array([1]),
-                                             do_clip=True),
-            do_clip=True)
+                                             norm=np.array([1])))
 
         u_map.T[0][u_px] = source_points.T[0]
         v_map.T[0][u_px] = source_points.T[1]
