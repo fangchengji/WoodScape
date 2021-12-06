@@ -88,7 +88,7 @@ def make_ucm_cam(cam: Camera):
 def make_pinhole_cam(cam: Camera):
     assert isinstance(cam.lens, RadialPolyCamProjection)
     # fx, fy
-    intrincs = [123, 123]
+    intrincs = [400, 400]
     lens = PerspectProjection(intrincs)
     return Camera(rotation=cam.rotation,
                   translation=cam.translation,

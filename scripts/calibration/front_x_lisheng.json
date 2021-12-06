@@ -1,0 +1,29 @@
+{
+  "extrinsic": {
+    "quaternion": [
+      0.3799282,
+      0.3799282,
+      0.59636781,
+      0.59636781
+    ],
+    "translation": [
+      3.84755,
+      0.0,
+      0.608149
+    ]
+  },
+  "intrinsic": {
+    "aspect_ratio": 1.0,
+    "cx_offset": 0,
+    "cy_offset": 0,
+    "height": 1280.0,
+    "k1": 0.181895,
+    "k2": -0.0204841,
+    "k3": -0.0118654,
+    "k4": 0.00330831,
+    "model": "radial_poly",
+    "poly_order": 4,
+    "width": 1920.0
+  },
+  "name": "FV"
+}

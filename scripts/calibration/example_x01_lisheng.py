@@ -31,7 +31,7 @@ from matplotlib import pyplot as plt
 import argparse
 
 from projection import Camera, RadialPolyCamProjection, CylindricalProjection, read_cam_from_json, \
-    create_img_projection_maps, RadialTableCamProjection
+    create_img_projection_maps, RadialTableCamProjection, UCMProjection, PerspectProjection, KBProjection
 
 
 def make_cylindrical_cam(cam: Camera):
@@ -69,11 +69,39 @@ def make_radial_table_cam(cam: Camera):
                   aspect_ratio=cam.aspect_ratio)
 
 
+def make_kb_cam(cam: Camera):
+    assert isinstance(cam.lens, RadialPolyCamProjection)
+    #fx, fy, cx, cy, k1	K2	K3	K4	k5
+    intrincs = [
+        418.963, 419.003, 959.988, 639.804, 0.181895, -0.0204841, -0.0118654, 0.00330831
+    ]
+    lens = KBProjection(intrincs)
+    return Camera(rotation=cam.rotation,
+                  translation=cam.translation,
+                  lens=lens,
+                  size=cam.size,
+                  principle_point=(cam.cx_offset, cam.cy_offset),
+                  aspect_ratio=cam.aspect_ratio)
+
+
+def make_pinhole_cam(cam: Camera):
+    assert isinstance(cam.lens, RadialPolyCamProjection)
+    # fx, fy
+    intrincs = [400,  400]
+    lens = PerspectProjection(intrincs)
+    return Camera(rotation=cam.rotation,
+                  translation=cam.translation,
+                  lens=lens,
+                  size=cam.size,
+                  principle_point=(cam.cx_offset, cam.cy_offset),
+                  aspect_ratio=cam.aspect_ratio)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i",
-                        "--input_list",
-                        default="",
+                        "--input_img",
+                        default="1.bmp",
                         help="input images list")
     parser.add_argument("-o",
                         "--output_dir",
@@ -88,15 +116,16 @@ if __name__ == "__main__":
 
     # generate camera instances
     fisheye_cam = read_cam_from_json(
-        os.path.join(root, args.direction + '_m.json'))
-    fisheye_cam = make_radial_table_cam(fisheye_cam)
-    cylindrical_cam = make_cylindrical_cam(fisheye_cam)
+        os.path.join(root, args.direction + '_x.json'))
+    pinhole_cam = make_pinhole_cam(fisheye_cam)
+    ucm_cam = make_kb_cam(fisheye_cam)
 
     # load example image and re-project it to a central cylindrical projection
-    map1, map2 = create_img_projection_maps(fisheye_cam, cylindrical_cam)
-    with open(args.input_list) as f:
-        lines = f.readlines()
-        img_lists = [l.rstrip() for l in lines]
+    map1, map2 = create_img_projection_maps(ucm_cam, pinhole_cam)
+    # with open(args.input_list) as f:
+    #     lines = f.readlines()
+    #     img_lists = [l.rstrip() for l in lines]
+    img_lists = [args.input_img]
 
     for img_path in img_lists:
         print(img_path)

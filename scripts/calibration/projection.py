@@ -169,6 +169,38 @@ class UCMProjection(Projection):
         return np.hstack((x, y, z))
 
 
+class KBProjection(Projection):
+    def __init__(self, intrincs: typing.Union[float, list]):
+        self.fx = intrincs[0]
+        self.fy = intrincs[1]
+        self.cx = intrincs[2]
+        self.cy = intrincs[3]
+        self.k1 = intrincs[4]
+        self.k2 = intrincs[5]
+        self.k3 = intrincs[6]
+        self.k4 = intrincs[7]
+
+    def project_3d_to_2d(self, cam_points, invalid_value=np.nan):
+        camera_points = ensure_point_list(cam_points, dim=3)
+        a = np.divide(camera_points[:, 0], camera_points[:, 2])
+        b = np.divide(camera_points[:, 1], camera_points[:, 2])
+        r = np.sqrt(np.power(a, 2) + np.power(b, 2))
+        theta = np.arctan2(r, 1)
+        theta_d = self._distort(theta)
+        x1 = np.divide(theta_d, r) * a
+        y1 = np.divide(theta_d, r) * b
+        u1 = self.fx * x1
+        v1 = self.fy * y1
+
+        return np.vstack((u1, v1)).transpose()
+    
+    def _distort(self, theta):
+        theta2 = np.power(theta, 2)
+        theta4 = np.power(theta2, 2)
+        theta6 = np.power(theta2, 3)
+        theta8 = np.power(theta2, 4)
+        return theta * (1 + self.k1 * theta2 + self.k2 * theta4 + self.k3 * theta6 + self.k4 * theta8)
+
 class RadialPolyCamProjection(Projection):
     def __init__(self, distortion_params: list):
         self.coefficients = np.asarray(distortion_params)

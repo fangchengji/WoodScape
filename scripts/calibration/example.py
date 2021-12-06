@@ -83,6 +83,7 @@ for i, pts in enumerate([(592, 443, 95, 75), (723, 458, 112, 54),
                   (128, 255, 64), 1)
 
 plt.imshow(cv2.cvtColor(fisheye_image, cv2.COLOR_BGR2RGB))
-plt.show()
+# plt.show()
 plt.imshow(cv2.cvtColor(cylindrical_image, cv2.COLOR_BGR2RGB))
-plt.show()
+# plt.show()
+plt.savefig("cylindrical_image.png")
