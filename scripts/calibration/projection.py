@@ -193,13 +193,15 @@ class KBProjection(Projection):
         v1 = self.fy * y1
 
         return np.vstack((u1, v1)).transpose()
-    
+
     def _distort(self, theta):
         theta2 = np.power(theta, 2)
         theta4 = np.power(theta2, 2)
         theta6 = np.power(theta2, 3)
         theta8 = np.power(theta2, 4)
-        return theta * (1 + self.k1 * theta2 + self.k2 * theta4 + self.k3 * theta6 + self.k4 * theta8)
+        return theta * (1 + self.k1 * theta2 + self.k2 * theta4 +
+                        self.k3 * theta6 + self.k4 * theta8)
+
 
 class RadialPolyCamProjection(Projection):
     def __init__(self, distortion_params: list):
@@ -373,7 +375,8 @@ class Camera(object):
                          do_clip=False,
                          invalid_value=np.nan):
         world_points = ensure_point_list(world_points, dim=4)
-
+        # print(self._pose)
+        # print(self._inv_pose)
         camera_points = world_points @ self._inv_pose.T
         lens_points = self.lens.project_3d_to_2d(camera_points[:, 0:3],
                                                  invalid_value=invalid_value)
@@ -435,6 +438,30 @@ def create_img_projection_maps(source_cam: Camera, destination_cam: Camera):
 
         u_map.T[0][u_px] = source_points.T[0]
         v_map.T[0][u_px] = source_points.T[1]
+
+    map1, map2 = cv2.convertMaps(u_map,
+                                 v_map,
+                                 dstmap1type=cv2.CV_16SC2,
+                                 nninterpolation=False)
+    return map1, map2
+
+
+def create_ipm_projection_maps(dst_box: np.ndarray, cam: Camera):
+    """generates maps for cv2.remap to remap from one camera to another"""
+    # dst: top, left, bottom, right: 9, 6, 4, -6
+    y_axis = np.arange(dst_box[0], dst_box[2], -0.02)  # 9, 4
+    x_axis = np.arange(dst_box[1], dst_box[3], -0.02)  # 6, -6
+    u_map = np.zeros((y_axis.shape[0], x_axis.shape[0], 1), dtype=np.float32)
+    v_map = np.zeros((y_axis.shape[0], x_axis.shape[0], 1), dtype=np.float32)
+    for u, px in enumerate(x_axis):
+        destination_points_x = np.ones(y_axis.shape[0]) * px
+        destination_points_z = np.ones(y_axis.shape[0]) * 0.0
+        destination_points = np.vstack(
+            (y_axis, destination_points_x, destination_points_z)).T
+
+        source_points = cam.project_3d_to_2d(destination_points)
+        u_map.T[0][u] = source_points.T[0]
+        v_map.T[0][u] = source_points.T[1]
 
     map1, map2 = cv2.convertMaps(u_map,
                                  v_map,
